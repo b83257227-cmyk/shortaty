@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>صانع الشورتس</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f5f7;--card:#fff;--ink:#14181f;--mute:#5d6673;--line:#d9dee5;--acc:#0a8f84;--on:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1318;--card:#181e26;--ink:#eef1f4;--mute:#9aa4b2;--line:#2b3440;--acc:#2fd0c2;--on:#06201d;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1318;--card:#181e26;--ink:#eef1f4;--mute:#9aa4b2;--line:#2b3440;--acc:#2fd0c2;--on:#06201d;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Tajawal,Tahoma,Arial,sans-serif;line-height:1.6}
+main{max-width:980px;margin:0 auto;padding:20px 16px 40px;display:grid;gap:18px;grid-template-columns:1fr}
+@media(min-width:820px){main{grid-template-columns:1fr 1fr;align-items:start}h1,.note{grid-column:1/-1}}
+h1{font-size:28px;font-weight:900;margin:0}
+.note{color:var(--mute);margin:-8px 0 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px}
+label{font-weight:700;font-size:14px;display:grid;gap:6px}
+input,textarea,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%}
+textarea{min-height:76px;resize:vertical}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:12px;background:var(--acc);color:var(--on);cursor:pointer}
+button.alt{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:disabled{opacity:.5}
+.stage{display:grid;justify-items:center;gap:12px}
+canvas,video{max-width:100%;max-height:62vh;border-radius:12px;background:#000}
+#st{color:var(--mute);font-size:14px;margin:0;text-align:center}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
+</style>
+</head>
+<body>
+<main>
+<h1>صانع الشورتس</h1>
+<p class="note">اكتب العنوان والأفكار، وهتتحول لمشاهد متحركة جاهزة للمعاينة والتسجيل.</p>
+<section class="card">
+<label>العنوان (أول مشهد)<input id="title" value="3 أدوات ذكاء اصطناعي توفر وقتك"></label>
+<label>الفكرة الرئيسية<textarea id="main">الذكاء الاصطناعي مش رفاهية، ده اختصار ساعات شغل.</textarea></label>
+<label>الأفكار الفرعية (كل فكرة في سطر)<textarea id="subs" rows="4">أداة تلخص لك أي ملف في ثواني
+أداة تكتب لك الإيميلات الرسمية
+أداة تحول فكرتك لسكريبت فيديو</textarea></label>
+<label>سكريبت كامل (اختياري، يحل محل الفكرة والأفكار الفرعية)<textarea id="script" placeholder="اكتب جمل السكريبت. كل جملة أو سطر هيبقى مشهد."></textarea></label>
+<label>جملة الختام<input id="cta" value="تابعنا عشان تشوف أكتر"></label>
+<div class="row">
+<label>حجم الفيديو<select id="size"><option value="9:16">9:16 شورتس</option><option value="1:1">1:1 مربع</option><option value="16:9">16:9 عرضي</option></select></label>
+<label>الألوان<select id="theme"><option value="0">أزرق وزمردي</option><option value="1">بنفسجي وبرتقالي</option><option value="2">أسود وأصفر</option><option value="3">أخضر داكن</option></select></label>
+</div>
+<label>مدة كل مشهد: <span id="dv">3</span> ثانية<input id="dur" type="range" min="2" max="6" step="0.5" value="3"></label>
+</section>
+<section class="card stage">
+<canvas id="cv" width="540" height="960" aria-label="معاينة الفيديو"></canvas>
+<p id="st">جاهز</p>
+<div class="btns"><button id="play">معاينة</button><button id="rec" class="alt">سجّل الفيديو</button></div>
+<div id="out" style="width:100%;display:grid;justify-items:center;gap:8px"></div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id),cv=$('cv'),cx=cv.getContext('2d');
+const SZ={'9:16':[540,960],'1:1':[720,720],'16:9':[960,540]};
+const TH=[['#10243f','#0b6b66','#2fe0cf'],['#2a1252','#7a2b6b','#ff9a3d'],['#0d0d0d','#262210','#ffd21f'],['#0e2a1f','#16503a','#9be564']];
+let W=540,H=960,sc=[],D=3,T=0,t0=0,raf=0,mode='',rc=null;
+const ease=x=>1-Math.pow(1-x,3);
+function build(){
+  const t=$('title').value.trim(),m=$('main').value.trim(),c=$('cta').value.trim();
+  const sub=$('subs').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const scr=$('script').value.split(/[\n.!؟?]+/).map(s=>s.trim()).filter(Boolean);
+  sc=[];if(t)sc.push({t,k:'h'});
+  if(scr.length)scr.forEach(s=>sc.push({t:s,k:'b'}));else{if(m)sc.push({t:m,k:'b'});sub.forEach(s=>sc.push({t:s,k:'b'}))}
+  if(c)sc.push({t:c,k:'c'});
+  [W,H]=SZ[$('size').value];cv.width=W;cv.height=H;D=+$('dur').value;
+}
+function wrap(s,max){const w=s.split(' '),ls=[];let l='';for(const x of w){const n=l?l+' '+x:x;if(cx.measureText(n).width>max&&l){ls.push(l);l=x}else l=n}ls.push(l);return ls}
+function draw(t){
+  const n=sc.length||1,i=Math.min(Math.floor(t/D),n-1),p=Math.min((t-i*D)/D,1),c=TH[+$('theme').value];
+  const g=cx.createLinearGradient(0,0,W*.6,H);g.addColorStop(0,c[0]);g.addColorStop(1,c[1]);cx.fillStyle=g;cx.fillRect(0,0,W,H);
+  cx.fillStyle=c[2];cx.globalAlpha=.16;cx.beginPath();cx.arc(W*(i%2?.15:.85),H*(.2+.15*((i*37)%5)/4),W*.38+p*20,0,7);cx.fill();cx.globalAlpha=1;
+  const s=sc[i];if(!s)return;
+  const a=Math.min(1,p*5),fs=Math.round(W*(s.k==='h'?.1:s.k==='c'?.085:.078));
+  cx.font='900 '+fs+'px Tajawal,Tahoma,Arial,sans-serif';cx.direction='rtl';cx.textAlign='center';cx.textBaseline='middle';
+  const ls=wrap(s.t,W*.8),lh=fs*1.45,y0=H/2-(ls.length-1)*lh/2+(1-ease(a))*40;
+  cx.globalAlpha=Math.min(1,a*1.2);
+  ls.forEach((l,j)=>{cx.fillStyle=s.k==='h'?c[2]:'#fff';cx.fillText(l,W/2,y0+j*lh)});
+  cx.globalAlpha=1;cx.fillStyle=c[2];cx.fillRect(W*.1,H/2+(ls.length*lh)/2+fs*.6,W*.8*ease(a)*.18,5);
+  cx.fillStyle='rgba(255,255,255,.25)';cx.fillRect(0,H-8,W,8);cx.fillStyle=c[2];cx.fillRect(0,H-8,W*Math.min(t/(n*D),1),8);
+}
+function stop(){cancelAnimationFrame(raf);mode='';$('play').textContent='معاينة';$('play').disabled=false;$('rec').disabled=false}
+function run(m){
+  build();if(!sc.length){$('st').textContent='اكتب عنوان أو فكرة أولاً.';return}
+  mode=m;t0=performance.now();$('play').textContent=m==='play'?'إيقاف':'معاينة';
+  if(m==='rec')$('play').disabled=true;$('rec').disabled=true;
+  (function f(now){T=(now-t0)/1000;const tot=sc.length*D;draw(Math.min(T,tot));
+    $('st').textContent=(m==='rec'?'جاري التسجيل… ':'')+'مشهد '+(Math.min(Math.floor(T/D),sc.length-1)+1)+' من '+sc.length;
+    if(T>=tot){if(m==='rec'&&rc&&rc.state!=='inactive')setTimeout(()=>rc.stop(),300);else stop();return}
+    raf=requestAnimationFrame(f)})(t0);
+}
+$('play').onclick=()=>{if(mode==='play'){stop();$('st').textContent='متوقف'}else run('play')};
+$('rec').onclick=()=>{
+  if(!window.MediaRecorder||!cv.captureStream){$('st').textContent='متصفحك لا يدعم التسجيل. استخدم تسجيل الشاشة وشغّل المعاينة.';return}
+  build();const types=['video/webm;codecs=vp9','video/webm','video/mp4'],ty=types.find(x=>MediaRecorder.isTypeSupported(x));
+  const ch=[];rc=new MediaRecorder(cv.captureStream(30),ty?{mimeType:ty,videoBitsPerSecond:4e6}:{});
+  rc.ondataavailable=e=>e.data.size&&ch.push(e.data);
+  rc.onstop=()=>{stop();const b=new Blob(ch,{type:rc.mimeType||'video/webm'}),v=document.createElement('video');
+    v.src=URL.createObjectURL(b);v.controls=true;v.playsInline=true;$('out').replaceChildren(v,Object.assign(document.createElement('p'),{id:'st',textContent:'تم التسجيل. اضغط مطولاً على الفيديو واختر حفظ، أو استخدم قائمة التنزيل.'}));$('st').textContent='تم التسجيل'};
+  rc.start();run('rec');
+};
+$('dur').oninput=()=>{$('dv').textContent=$('dur').value;if(!mode){build();draw(0)}};
+['title','main','subs','script','cta','size','theme'].forEach(k=>$(k).addEventListener('input',()=>{if(!mode){build();draw(0)}}));
+(document.fonts&&document.fonts.load?document.fonts.load('900 40px Tajawal').catch(()=>{}):Promise.resolve()).then(()=>{build();draw(0)});
+</script>
+</body>
+</html>
